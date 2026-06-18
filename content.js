@@ -1,0 +1,47 @@
+// content.js - 桥接 storage 和 MAIN world 的 injected.js
+
+const RULES_KEY = 'rh_rules';
+
+// 同步规则到 MAIN world 的页面脚本
+function syncRulesToPage(rules) {
+  window.postMessage({
+    source: 'request-hacker-content',
+    type: 'UPDATE_RULES',
+    rules: rules || []
+  }, '*');
+}
+
+// 初始加载规则
+function loadAndSync() {
+  chrome.storage.local.get(RULES_KEY).then(data => {
+    syncRulesToPage(data[RULES_KEY] || []);
+  });
+}
+
+// 立即加载一次
+loadAndSync();
+
+// 多次尝试，确保 MAIN world 脚本能收到（处理时序问题）
+let attempts = 0;
+const initInterval = setInterval(() => {
+  loadAndSync();
+  attempts++;
+  if (attempts >= 5) clearInterval(initInterval);
+}, 100);
+
+// 监听存储变化
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace === 'local' && changes[RULES_KEY]) {
+    syncRulesToPage(changes[RULES_KEY].newValue || []);
+  }
+});
+
+// 监听来自 MAIN world 的请求
+window.addEventListener('message', (event) => {
+  if (event.source !== window) return;
+  if (event.data?.source !== 'request-hacker-injected') return;
+
+  if (event.data.type === 'REQUEST_RULES') {
+    loadAndSync();
+  }
+});

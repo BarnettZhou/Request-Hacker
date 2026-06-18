@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Request Hacker - 配置</title>
+  <link rel="stylesheet" href="styles/options.css">
+</head>
+<body>
+  <div class="container">
+    <!-- 左侧规则列表 -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>规则列表</h2>
+        <button id="addRuleBtn" class="btn-primary" title="添加新规则">
+          <span>+</span> 新建规则
+        </button>
+      </div>
+
+      <div class="rules-list" id="rulesList">
+        <div class="empty-state">
+          <p>暂无规则</p>
+          <p class="hint">点击"新建规则"开始</p>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <button type="button" id="exportBtn" class="btn-secondary">📤 导出规则</button>
+        <button type="button" id="importBtn" class="btn-secondary">📥 导入规则</button>
+        <input type="file" id="importFile" accept=".json" style="display: none;" />
+      </div>
+    </aside>
+
+    <!-- 右侧规则详情 -->
+    <main class="content">
+      <div class="empty-detail" id="emptyDetail">
+        <p>选择一个规则开始编辑</p>
+      </div>
+
+      <div class="detail-header" id="detailHeader" style="display: none;">
+        <h2>规则详情</h2>
+        <div class="header-actions">
+          <button id="saveRuleBtn" class="btn-primary">保存</button>
+          <button id="deleteRuleBtn" class="btn-danger">删除</button>
+        </div>
+      </div>
+
+      <div class="rule-detail" id="ruleDetail" style="display: none;">
+        <form id="ruleForm">
+          <div class="form-group">
+            <label for="ruleName">
+              规则名称
+              <span class="required">*</span>
+            </label>
+            <input
+              type="text"
+              id="ruleName"
+              placeholder="例如：修改权限接口"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="ruleEnabled" checked />
+              <span>启用此规则</span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label for="urlPattern">
+              URL 匹配规则
+              <span class="required">*</span>
+              <span class="hint-inline">支持通配符 *</span>
+            </label>
+            <input
+              type="text"
+              id="urlPattern"
+              placeholder="例如：*://api.example.com/endpoint"
+              required
+            />
+            <p class="hint">
+              示例：<code>*/api/auth</code> 或 <code>https://example.com/*</code>
+            </p>
+          </div>
+
+          <!-- 响应配置 Tabs -->
+          <div class="form-group">
+            <label>响应配置</label>
+            <div class="tabs-bar" id="responseTabs"></div>
+            <div class="tab-actions">
+              <button type="button" id="addTabBtn" class="btn-secondary">+ 添加配置</button>
+              <button type="button" id="deleteTabBtn" class="btn-danger">删除当前</button>
+            </div>
+            <div class="tab-content">
+              <input
+                type="text"
+                id="tabName"
+                placeholder="配置名称，例如：VIP 2027"
+              />
+              <div class="textarea-bar">
+                <button type="button" id="fullscreenBtn" class="btn-text">⛶ 全屏编辑</button>
+                <button type="button" id="formatJsonBtn" class="btn-text">✨ 格式化 JSON</button>
+              </div>
+              <textarea
+                id="tabContent"
+                rows="18"
+                placeholder='{"code": 8200, "result": [{"className": "VIP", "expTime": "2099-12-31"}]}'
+                required
+              ></textarea>
+            </div>
+            <p class="hint">
+              请输入有效的 JSON 格式数据。点击不同配置可快速切换返回值。
+            </p>
+          </div>
+
+          <div class="form-actions" style="display: none;">
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <div class="fullscreen-overlay" id="fullscreenOverlay" style="display: none;">
+    <div class="fullscreen-header">
+      <span>全屏编辑 JSON</span>
+      <div class="fullscreen-actions">
+        <button id="fullscreenSave" class="btn-primary">保存</button>
+        <button id="fullscreenCancel" class="btn-secondary">取消</button>
+      </div>
+    </div>
+    <textarea id="fullscreenTextarea" placeholder='请输入 JSON 数据'></textarea>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
