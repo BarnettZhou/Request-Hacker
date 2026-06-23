@@ -1,8 +1,10 @@
 const RULES_KEY = 'rh_rules';
+const GLOBAL_ENABLED_KEY = 'rh_enabled';
 
 let rules = [];
 let currentRuleIndex = -1;
 let currentResponseId = null;
+let globalEnabled = true;
 
 const rulesList = document.getElementById('rulesList');
 const detailHeader = document.getElementById('detailHeader');
@@ -11,6 +13,7 @@ const emptyDetail = document.getElementById('emptyDetail');
 const ruleForm = document.getElementById('ruleForm');
 
 const addRuleBtn = document.getElementById('addRuleBtn');
+const globalToggle = document.getElementById('globalToggle');
 const saveRuleBtn = document.getElementById('saveRuleBtn');
 const deleteRuleBtn = document.getElementById('deleteRuleBtn');
 const formatJsonBtn = document.getElementById('formatJsonBtn');
@@ -37,13 +40,15 @@ const tabContentInput = document.getElementById('tabContent');
 // ========== 初始化 ==========
 async function init() {
   await loadRules();
+  renderGlobalToggle();
   renderRulesList();
   bindEvents();
 }
 
 async function loadRules() {
-  const data = await chrome.storage.local.get(RULES_KEY);
+  const data = await chrome.storage.local.get([RULES_KEY, GLOBAL_ENABLED_KEY]);
   rules = data[RULES_KEY] || [];
+  globalEnabled = data[GLOBAL_ENABLED_KEY] !== false;
   // 兼容旧数据：将单个 response 字符串迁移为 responses 数组
   rules.forEach(rule => {
     if (!rule.responses && rule.response) {
@@ -65,6 +70,14 @@ async function saveRules() {
   await chrome.storage.local.set({ [RULES_KEY]: rules });
 }
 
+async function saveGlobalEnabled() {
+  await chrome.storage.local.set({ [GLOBAL_ENABLED_KEY]: globalEnabled });
+}
+
+function renderGlobalToggle() {
+  globalToggle.classList.toggle('on', globalEnabled);
+}
+
 function generateId(prefix) {
   return prefix + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
 }
@@ -84,7 +97,7 @@ function renderRulesList() {
   rulesList.innerHTML = rules.map((rule, index) => {
     const selectedResp = getSelectedResponse(rule);
     return `
-      <div class="rule-item ${index === currentRuleIndex ? 'active' : ''}" data-index="${index}">
+      <div class="rule-item ${index === currentRuleIndex ? 'active' : ''} ${!globalEnabled ? 'disabled' : ''}" data-index="${index}">
         <div class="rule-item-header">
           <div class="rule-item-name">${escapeHtml(rule.name || '未命名规则')}</div>
           <div class="rule-item-toggle ${rule.enabled ? 'enabled' : ''}" data-index="${index}"></div>
@@ -114,6 +127,7 @@ function renderRulesList() {
 }
 
 function toggleRule(index) {
+  if (!globalEnabled) return;
   rules[index].enabled = !rules[index].enabled;
   saveRules();
   renderRulesList();
@@ -427,6 +441,14 @@ importFile.addEventListener('change', async (e) => {
 // ========== 事件绑定 ==========
 function bindEvents() {
   addRuleBtn.addEventListener('click', addRule);
+
+  globalToggle.addEventListener('click', async () => {
+    globalEnabled = !globalEnabled;
+    await saveGlobalEnabled();
+    renderGlobalToggle();
+    renderRulesList();
+  });
+
   saveRuleBtn.addEventListener('click', saveCurrentRule);
   deleteRuleBtn.addEventListener('click', deleteCurrentRule);
   formatJsonBtn.addEventListener('click', formatJson);

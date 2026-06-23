@@ -4,6 +4,7 @@
   'use strict';
 
   let rules = [];
+  let globalEnabled = true;
 
   // 监听来自 content script 的规则更新
   window.addEventListener('message', (event) => {
@@ -12,7 +13,8 @@
 
     if (event.data.type === 'UPDATE_RULES') {
       rules = event.data.rules || [];
-      console.log('[request-hacker] Rules updated:', rules.length);
+      globalEnabled = event.data.enabled !== false;
+      console.log('[request-hacker] Rules updated:', rules.length, 'enabled:', globalEnabled);
     }
   });
 
@@ -40,6 +42,7 @@
 
   // 查找匹配的规则
   function findMatchedRule(url) {
+    if (!globalEnabled) return null;
     return rules.find(rule =>
       rule.enabled &&
       rule.urlPattern &&

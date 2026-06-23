@@ -2,15 +2,24 @@
   'use strict';
 
   const RULES_KEY = 'rh_rules';
+  const GLOBAL_ENABLED_KEY = 'rh_enabled';
   const container = document.getElementById('rulesContainer');
+  const globalToggle = document.getElementById('globalToggle');
 
-  async function loadRules() {
-    const data = await chrome.storage.local.get(RULES_KEY);
-    return data[RULES_KEY] || [];
+  async function loadData() {
+    const data = await chrome.storage.local.get([RULES_KEY, GLOBAL_ENABLED_KEY]);
+    return {
+      rules: data[RULES_KEY] || [],
+      enabled: data[GLOBAL_ENABLED_KEY] !== false
+    };
   }
 
   async function saveRules(rules) {
     await chrome.storage.local.set({ [RULES_KEY]: rules });
+  }
+
+  async function saveGlobalEnabled(enabled) {
+    await chrome.storage.local.set({ [GLOBAL_ENABLED_KEY]: enabled });
   }
 
   function getSelectedResponse(rule) {
@@ -18,7 +27,9 @@
     return rule.responses.find(r => r.id === rule.selectedResponseId) || rule.responses[0];
   }
 
-  function renderRules(rules) {
+  function render(rules, globalEnabled) {
+    globalToggle.classList.toggle('on', globalEnabled);
+
     if (rules.length === 0) {
       container.innerHTML = '<div class="empty-state">暂无规则，点击配置页面创建</div>';
       return;
@@ -26,13 +37,15 @@
 
     container.innerHTML = rules.map((rule, index) => {
       const selectedResp = getSelectedResponse(rule);
+      const cardDisabled = !globalEnabled || !rule.enabled;
       const tagsHtml = (rule.responses || []).map(resp => {
         const isActive = resp.id === rule.selectedResponseId;
-        return `<span class="tag ${isActive ? 'active' : ''} ${!rule.enabled ? 'disabled' : ''}" data-rule="${index}" data-id="${resp.id}">${escapeHtml(resp.name || '未命名')}</span>`;
+        const tagDisabled = cardDisabled;
+        return `<span class="tag ${isActive ? 'active' : ''} ${tagDisabled ? 'disabled' : ''}" data-rule="${index}" data-id="${resp.id}">${escapeHtml(resp.name || '未命名')}</span>`;
       }).join('');
 
       return `
-        <div class="rule-card ${rule.enabled ? '' : 'disabled'}">
+        <div class="rule-card ${cardDisabled ? 'disabled' : ''}">
           <div class="rule-header">
             <div class="rule-name">${escapeHtml(rule.name || '未命名规则')}</div>
             <div class="toggle ${rule.enabled ? 'on' : ''}" data-index="${index}"></div>
@@ -43,17 +56,19 @@
       `;
     }).join('');
 
-    bindEvents(rules);
+    bindEvents(rules, globalEnabled);
   }
 
-  function bindEvents(rules) {
+  function bindEvents(rules, globalEnabled) {
     // Toggle 开关
     document.querySelectorAll('.toggle').forEach(toggle => {
       toggle.addEventListener('click', async () => {
+        if (!globalEnabled) return;
         const index = parseInt(toggle.dataset.index);
         rules[index].enabled = !rules[index].enabled;
         await saveRules(rules);
-        renderRules(rules);
+        const data = await loadData();
+        render(data.rules, data.enabled);
       });
     });
 
@@ -62,10 +77,11 @@
       tag.addEventListener('click', async () => {
         const index = parseInt(tag.dataset.rule);
         const respId = tag.dataset.id;
-        if (!rules[index].enabled) return; // 禁用规则时不能切换
+        if (!globalEnabled || !rules[index].enabled) return;
         rules[index].selectedResponseId = respId;
         await saveRules(rules);
-        renderRules(rules);
+        const data = await loadData();
+        render(data.rules, data.enabled);
       });
     });
   }
@@ -81,15 +97,23 @@
     chrome.runtime.openOptionsPage();
   });
 
+  // 总开关
+  globalToggle.addEventListener('click', async () => {
+    const data = await loadData();
+    const newEnabled = !data.enabled;
+    await saveGlobalEnabled(newEnabled);
+    render(data.rules, newEnabled);
+  });
+
   // 初始化
   async function init() {
-    const rules = await loadRules();
-    renderRules(rules);
+    const data = await loadData();
+    render(data.rules, data.enabled);
 
     // 监听 storage 变化，实时更新 popup
     chrome.storage.onChanged.addListener((changes, area) => {
-      if (area === 'local' && changes[RULES_KEY]) {
-        renderRules(changes[RULES_KEY].newValue || []);
+      if (area === 'local' && (changes[RULES_KEY] || changes[GLOBAL_ENABLED_KEY])) {
+        loadData().then(data => render(data.rules, data.enabled));
       }
     });
   }
